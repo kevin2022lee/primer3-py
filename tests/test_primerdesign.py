@@ -644,6 +644,115 @@ class TestDesignBindings(unittest.TestCase):
             global_args=global_args,
         )
 
+    def test_iupac_degenerate_bases(self):
+        '''Test that IUPAC degeneracy codes (Y, M, R, etc.) are accepted
+        when PRIMER_LIBERAL_BASE=1.
+
+        This is a common use case when designing primers for loci with
+        known SNP/mutation sites.
+        '''
+        # Sequence with Y (C or T) and M (A or C) ambiguity codes
+        seq_with_iupac = (
+            'GCTTGCATGCCTGCAGGTCGACTCTAGAGGATCCCCCTACATTTTAGCATCAGTGAGTACAGCAT'
+            'GCTTACTGGAAGAGAGGGTCATGCAACAGATTAGGAGGTAAGTTTGCAAAGGCAGGCTAAGGAGG'
+            'AGACGCACTGAATGCCATGGTAAGAACTCTGGACATAAAAATATTGGAAGTTGTTGAGCAAGTNA'
+            'AAAAAATGTTTGGAAGTGTTACTTTAGCAATGGCAAGAATGATAGTATGGAATAGATTGGCAGAA'
+            'TGAAGGCAAAATGATTAGACATATTGCATTAAGGTAAAAAATGATAACTGAAGAATTATGTGCCA'
+            'CACTTATTAATAAGAAAGAATATGTGAACCTTGCAGATGTTTCCCTCTAGTAG'
+        )
+        seq_args = {
+            'SEQUENCE_ID': 'iupac_test',
+            'SEQUENCE_TEMPLATE': seq_with_iupac,
+            'SEQUENCE_INCLUDED_REGION': (36, 342),
+        }
+        global_args = {
+            'PRIMER_OPT_SIZE': 20,
+            'PRIMER_MIN_SIZE': 18,
+            'PRIMER_MAX_SIZE': 25,
+            'PRIMER_OPT_TM': 60.0,
+            'PRIMER_MIN_TM': 57.0,
+            'PRIMER_MAX_TM': 63.0,
+            'PRIMER_MIN_GC': 20.0,
+            'PRIMER_MAX_GC': 80.0,
+            'PRIMER_MAX_NS_ACCEPTED': 0,
+            'PRIMER_PRODUCT_SIZE_RANGE': [[75, 200]],
+        }
+
+        # Without PRIMER_LIBERAL_BASE=1, this should fail with an error
+        result_without_liberal = bindings.design_primers(
+            seq_args=seq_args.copy(),
+            global_args=global_args.copy(),
+        )
+        # Should have an error about unrecognized base
+        self.assertIn(
+            'PRIMER_ERROR',
+            result_without_liberal,
+            'Expected PRIMER_ERROR for IUPAC bases without PRIMER_LIBERAL_BASE',
+        )
+
+        # With PRIMER_LIBERAL_BASE=1, this should succeed
+        global_args_with_liberal = global_args.copy()
+        global_args_with_liberal['PRIMER_LIBERAL_BASE'] = 1
+
+        result_with_liberal = bindings.design_primers(
+            seq_args=seq_args.copy(),
+            global_args=global_args_with_liberal,
+        )
+        # Should NOT have an error
+        self.assertNotIn(
+            'PRIMER_ERROR',
+            result_with_liberal,
+            f'PRIMER_LIBERAL_BASE=1 should accept IUPAC codes: {result_with_liberal.get("PRIMER_ERROR", "")}',
+        )
+        # Should return at least one primer pair
+        self.assertGreater(
+            result_with_liberal['PRIMER_PAIR_NUM_RETURNED'],
+            0,
+            'Should return at least one primer pair with IUPAC codes',
+        )
+
+    def test_iupac_overhang_degenerate_bases(self):
+        '''Test that IUPAC degeneracy codes are accepted in overhang sequences
+        when PRIMER_LIBERAL_BASE=1.
+        '''
+        seq_args = {
+            'SEQUENCE_ID': 'overhang_test',
+            'SEQUENCE_TEMPLATE': (
+                'GCTTGCATGCCTGCAGGTCGACTCTAGAGGATCCCCCTACATTTTAGCATCAGTGAGTACAGCAT'
+                'GCTTACTGGAAGAGAGGGTCATGCAACAGATTAGGAGGTAAGTTTGCAAAGGCAGGCTAAGGAGG'
+                'AGACGCACTGAATGCCATGGTAAGAACTCTGGACATAAAAATATTGGAAGTTGTTGAGCAAGTNA'
+                'AAAAAAATGTTTGGAAGTGTTACTTTAGCAATGGCAAGAATGATAGTATGGAATAGATTGGCAGAA'
+                'TGAAGGCAAAATGATTAGACATATTGCATTAAGGTAAAAAATGATAACTGAAGAATTATGTGCCA'
+                'CACTTATTAATAAGAAAGAATATGTGAACCTTGCAGATGTTTCCCTCTAGTAG'
+            ),
+            'SEQUENCE_INCLUDED_REGION': (36, 342),
+            # Overhang with R (A or G) degeneracy code
+            'SEQUENCE_OVERHANG_LEFT': 'RATG',
+        }
+        global_args = {
+            'PRIMER_OPT_SIZE': 20,
+            'PRIMER_MIN_SIZE': 18,
+            'PRIMER_MAX_SIZE': 25,
+            'PRIMER_OPT_TM': 60.0,
+            'PRIMER_MIN_TM': 57.0,
+            'PRIMER_MAX_TM': 63.0,
+            'PRIMER_MIN_GC': 20.0,
+            'PRIMER_MAX_GC': 80.0,
+            'PRIMER_MAX_NS_ACCEPTED': 0,
+            'PRIMER_PRODUCT_SIZE_RANGE': [[75, 200]],
+            'PRIMER_LIBERAL_BASE': 1,
+        }
+
+        result = bindings.design_primers(
+            seq_args=seq_args,
+            global_args=global_args,
+        )
+        self.assertNotIn(
+            'PRIMER_ERROR',
+            result,
+            f'PRIMER_LIBERAL_BASE=1 should accept IUPAC codes in overhang: {result.get("PRIMER_ERROR", "")}',
+        )
+
 
 def suite():
     suite = unittest.TestSuite()
