@@ -7586,12 +7586,12 @@ _pr_data_control(const p3_global_settings *pa,
     return 1;
   }
 
-  if ((offending_char = dna_to_upper(sa->trimmed_seq, 0))) {
-    char err_msg[64];
+  if ((offending_char = dna_to_upper(sa->trimmed_seq, pa->liberal_base))) {
+    char err_msg[128];
     snprintf(
       err_msg,
-      64,
-      "Rejecting invalid sequence character (only ACGTN allowed): %c",
+      128,
+      "Rejecting invalid sequence character (only ACGTN and IUPAC ambiguity codes allowed): %c",
       offending_char
     );
     if (pa->liberal_base) {
@@ -7610,9 +7610,20 @@ _pr_data_control(const p3_global_settings *pa,
       pr_append(glob_err, MACRO_VALUE_AS_STRING(THAL_MAX_ALIGN));
       return 1;
     }
-    if ((offending_char = dna_to_upper(sa->overhang_left, 0))) {
-      pr_append_new_chunk(nonfatal_err, "Unrecognized base in left overhang");
-      return 1;
+    if ((offending_char = dna_to_upper(sa->overhang_left, pa->liberal_base))) {
+      char err_msg[128];
+      snprintf(
+        err_msg,
+        128,
+        "Unrecognized base in left overhang: %c",
+        offending_char
+      );
+      if (pa->liberal_base) {
+        pr_append_new_chunk(warning, err_msg);
+      } else {
+        pr_append_new_chunk(nonfatal_err, err_msg);
+        return 1;
+      }
     }
   }
 
@@ -7624,9 +7635,20 @@ _pr_data_control(const p3_global_settings *pa,
       pr_append(glob_err, MACRO_VALUE_AS_STRING(THAL_MAX_ALIGN));
       return 1;
     }
-    if ((offending_char = dna_to_upper(sa->overhang_right, 0))) {
-      pr_append_new_chunk(nonfatal_err, "Unrecognized base in right overhang");
-      return 1;
+    if ((offending_char = dna_to_upper(sa->overhang_right, pa->liberal_base))) {
+      char err_msg[128];
+      snprintf(
+        err_msg,
+        128,
+        "Unrecognized base in right overhang: %c",
+        offending_char
+      );
+      if (pa->liberal_base) {
+        pr_append_new_chunk(warning, err_msg);
+      } else {
+        pr_append_new_chunk(nonfatal_err, err_msg);
+        return 1;
+      }
     }
   }
 
